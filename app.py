@@ -119,7 +119,7 @@ def main():
         else:
             st.session_state.user_input = user_input_str
 
-        st.experimental_rerun()
+
 
     if new_equation_button:
         st.session_state.equation_data = generate_equation()
@@ -127,7 +127,7 @@ def main():
         st.session_state.feedback_message = None
         st.session_state.feedback_type = None
         st.session_state.user_input = ""
-        st.experimental_rerun()
+
 
     with st.expander("💡 Need help? Click here for solving steps"):
         st.write("To solve an equation in the form `ax + b = c`:")
@@ -139,7 +139,6 @@ def main():
 
     if st.button("🔁 Reset Score"):
         st.session_state.score = 0
-        st.experimental_rerun()
 
 if __name__ == "__main__":
     main()
