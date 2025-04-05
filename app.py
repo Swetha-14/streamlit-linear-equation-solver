@@ -1,13 +1,16 @@
 import streamlit as st
 import random
+import time
 
 def init_session_state():
-    if 'equation_generated' not in st.session_state:
-        st.session_state.equation_generated = False
+    if 'initialized' not in st.session_state:
+        st.session_state.initialized = True
         st.session_state.feedback_message = None
         st.session_state.feedback_type = None
         st.session_state.score = 0
         st.session_state.user_input = ""
+        st.session_state.equation_data = generate_equation()
+        st.session_state.show_success = False
 
 def generate_equation():
     coefficient = random.choice([i for i in range(-10, 11) if i not in [0, -1]]) 
@@ -67,67 +70,60 @@ def render_equation(equation_string):
     st.markdown(f"## {equation_string}")
 
 def render_input_section():
-    user_input_str = st.text_input("Enter your answer (integer):", value=st.session_state.user_input)
+    # Clear input field when equation changes
+    input_key = f"answer_{st.session_state.equation_data['coefficient']}_{st.session_state.equation_data['constant_term']}_{st.session_state.equation_data['right_side']}"
+    
+    user_input_str = st.text_input("Enter your answer (integer):", key=input_key, value=st.session_state.user_input)
     try:
-        user_answer = int(user_input_str) if user_input_str else 0
-        input_valid = True
+        user_answer = int(user_input_str) if user_input_str.strip() else None
+        input_valid = user_answer is not None
     except ValueError:
-        user_answer = 0
+        user_answer = None
         input_valid = False
+    
     return user_input_str, user_answer, input_valid
 
-def render_buttons():
-    col1, col2 = st.columns([1, 3])
-    with col1:
-        check_button = st.button("✅ Check Answer")
-    with col2:
-        new_equation_button = st.button("🔄 New Equation")
-    return check_button, new_equation_button
-
 def main():
+
+    #Initial Rendering
     init_session_state()
-
-    if not st.session_state.equation_generated:
-        st.session_state.equation_data = generate_equation()
-        st.session_state.equation_generated = True
-        st.session_state.attempts = 0
-
     render_header()
     equation_string = format_equation(st.session_state.equation_data)
     render_equation(equation_string)
 
     user_input_str, user_answer, input_valid = render_input_section()
-    check_button, new_equation_button = render_buttons()
-
+    
+    col1, _ = st.columns([1, 3])
+    with col1:
+        check_button = st.button("✅ Check Answer")
+        
     if not input_valid and user_input_str:
         st.error("Please enter a valid integer (e.g., 5, -3, 0)")
-    elif st.session_state.feedback_message and input_valid:
-        if st.session_state.feedback_type == "success":
-            st.success(st.session_state.feedback_message)
-        else:
-            st.error(st.session_state.feedback_message)
 
-    if check_button and input_valid and user_input_str.strip():
-        st.session_state.attempts += 1
+    if check_button and input_valid:
         is_correct = check_answer(user_answer, st.session_state.equation_data['solution'])
-        st.session_state.feedback_message, st.session_state.feedback_type = update_score(is_correct)
+        feedback_message, feedback_type = update_score(is_correct)
 
         if is_correct:
+            st.session_state.feedback_message = None
+            st.session_state.feedback_type = None
+            st.success(feedback_message)
+        
+            time.sleep(1)
+            
             st.session_state.equation_data = generate_equation()
-            st.session_state.attempts = 0
             st.session_state.user_input = ""
+            st.session_state.show_success = False
+            st.rerun()
         else:
+            st.session_state.feedback_message = feedback_message
+            st.session_state.feedback_type = feedback_type
+            st.error(feedback_message)
             st.session_state.user_input = user_input_str
-
-
-
-    if new_equation_button:
-        st.session_state.equation_data = generate_equation()
-        st.session_state.attempts = 0
-        st.session_state.feedback_message = None
-        st.session_state.feedback_type = None
-        st.session_state.user_input = ""
-
+            st.rerun()
+    
+    elif st.session_state.feedback_type == "error" and st.session_state.feedback_message:
+        st.error(st.session_state.feedback_message)
 
     with st.expander("💡 Need help? Click here for solving steps"):
         st.write("To solve an equation in the form `ax + b = c`:")
@@ -139,6 +135,7 @@ def main():
 
     if st.button("🔁 Reset Score"):
         st.session_state.score = 0
+        st.rerun()
 
 if __name__ == "__main__":
     main()
